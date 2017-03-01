@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/wait.h>
 #include <readline/readline.h>
 #include <readline/history.h>
 //Chase Deets
@@ -44,7 +45,7 @@ int parseTok(char* cmdline, char** args)
 	return numArgs;
 }
 
-int validateCommand(char *argument, char **parameters, int numIns, int numOuts){
+int validateCommand(char *argument, char **parameters, int *numIns, int *numOuts, int *paramCt){
 	char temp[64];
 	char *par;
 	int p;
@@ -52,6 +53,10 @@ int validateCommand(char *argument, char **parameters, int numIns, int numOuts){
 	printf("validating: %s\n", temp);
 	par = strtok(temp, " ");
 	p = 0;
+	//numIns = 0;
+	//numOuts = 0;
+	int ins = 0;
+	int outs = 0;
 	while(par != 0){
 		parameters[p] = malloc(strlen(par)+1);			
 		strcpy(parameters[p], par);
@@ -60,15 +65,22 @@ int validateCommand(char *argument, char **parameters, int numIns, int numOuts){
 		p++;
 	}
 	parameters[p] = '\0';
+	*paramCt = p;
 	for(int i = 0; i < p; i++){
-		if(strcmp(parameters[i], "<") == 0) 
-			numIns++;
-		if(strcmp(parameters[i], ">") == 0)
-			numOuts++;
+		if(strcmp(parameters[i], "<") == 0){ 
+			ins++;
+			printf("%d input redirects found!\n", ins);
+		}
+		if(strcmp(parameters[i], ">") == 0){
+			outs++;
+			printf("%d output redirects found!\n", outs);
+		}
 	}
-	if(numIns >= 2)
+	*numIns = ins;
+	*numOuts = outs;
+	if(ins >= 2)
 		return -1;
-	else if(numOuts >= 2)
+	else if(outs >= 2)
 		return -2;
 	else
 		return 0;
@@ -95,13 +107,41 @@ int executeCommand(char **cmdArgs){
 	}
 	else if(pid == 0) {
 		execvp(cmdArgs[0], cmdArgs);
-		return 0;
+		perror("ERROR");
+		return 1;
 	}
 	else{
 		wait(NULL);
 		printf("Child has executed process!\n");
 		return 0;
 	}
+	return 0;
+}
+
+int executeRedirect(char **cmdArgs, int numOfCmds, char **reParams){
+	int inFile;
+	int outFile;
+	int inRedInd;
+	int outRedInd;
+	char tempArg[64];
+
+	printf("executing redirect\n");	
+	printf("numOfCmds: %d\n", numOfCmds);
+	for(int k = 0; k < numOfCmds; k++){
+		if(strcmp(cmdArgs[k], "<") == 0){
+			inRedInd = k;
+			printf("inRedInd: %d\n", inRedInd);
+			k++;
+		}else if (strcmp(cmdArgs[k], ">") == 0){
+			outRedInd = k;
+			printf("outRedInd: %d\n", outRedInd);
+			k++;
+		}else{
+			printf("add param %s to reparams...\n", cmdArgs[k]);
+		}
+		
+	}
+
 	return 0;
 }
 
@@ -115,7 +155,10 @@ int main(int argc, char** argv)
 	int numTokenGroups;
 	int numPipes;
 	int numInputRedirects;
+	int inputInd;
 	int numOutRedirects;
+	int numParams;
+	int outputInd;
 	int execStatus;
 	int validCmd;
 	int validToks;
@@ -124,6 +167,7 @@ int main(int argc, char** argv)
 	//char **tokenGroup = malloc(256 * sizeof(char*));
 	char **tokenGroup; 	//collection of tokens
 	char *params[64];	//token --> Params to be executed 
+	char *redirArgs[64];
 	
 
 	while(1)
@@ -156,19 +200,30 @@ int main(int argc, char** argv)
 			//params[0] = malloc(strlen(command)+1);			
 			//strcpy(params[0], command);
 			//printf("parameter[%d]:%s\n", 0, params[0]);
-			validCmd = validateCommand(command, params, numInputRedirects, numOutRedirects);
+			validCmd = validateCommand(command, params, &numInputRedirects, &numOutRedirects, &numParams);
 			printf("validCmd: %d\n", validCmd);
+			printf("inredirs: %d -- outredirs: %d\n", numInputRedirects, numOutRedirects);
+			printf("num of Parameters: %d\n", numParams);
 			if(validCmd != 0){
 				printf("ERROR: Invalid command entered. Check syntax.\n");
 				}
 			else
 				printf("ready to execute command - %s\n", params[0]);
-			execStatus = executeCommand(params);
-			if(execStatus == 0)
-				printf("Successful Command Execution\n");		
 
-			
-			
+			if((numInputRedirects == 0) && (numOutRedirects == 0))
+				execStatus = executeCommand(params);
+			else
+				execStatus = executeRedirect(params, numParams, redirArgs);
+
+			if(execStatus == 0)
+				printf("Successful Command Execution\n");
+			else
+				printf("ERROR: Could not execute Command\n");		
+	
+		}
+		else{	//pipes!
+			printf("Number of pipes to handle: %d\n", numPipes);
+
 		}	
 		
 		
