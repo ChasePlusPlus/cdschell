@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <unistd.h>
+#include <fcntl.h>
 #include <stdlib.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -87,10 +88,6 @@ int validateCommand(char *argument, char **parameters, int *numIns, int *numOuts
 }
 
 
-int validateToken(char **tokens, int numToks){
-	
-	return 0;
-}
 
 
 int executeCommand(char **cmdArgs){
@@ -123,24 +120,61 @@ int executeRedirect(char **cmdArgs, int numOfCmds, char **reParams){
 	int outFile;
 	int inRedInd;
 	int outRedInd;
+	int numIns;
+	int numOuts;
 	char tempArg[64];
 
 	printf("executing redirect\n");	
 	printf("numOfCmds: %d\n", numOfCmds);
+	numIns = 0;
+	numOuts = 0;
 	for(int k = 0; k < numOfCmds; k++){
 		if(strcmp(cmdArgs[k], "<") == 0){
 			inRedInd = k;
+			numIns++;
 			printf("inRedInd: %d\n", inRedInd);
 			k++;
 		}else if (strcmp(cmdArgs[k], ">") == 0){
 			outRedInd = k;
+			numOuts++;
 			printf("outRedInd: %d\n", outRedInd);
 			k++;
 		}else{
 			printf("add param %s to reparams...\n", cmdArgs[k]);
+			reParams[k] = malloc(strlen(cmdArgs[k]+1));
+			strcpy(reParams[k], cmdArgs[k]);
+			printf("readied param: %s\n", reParams[k]);
 		}
 		
+		
+		
 	}
+	printf("numIns: %d\n", numIns);
+	printf("numOuts: %d\n", numOuts);
+
+	if(numOuts == 1){
+		//setup output redirect and outfile name
+		outFile = open(cmdArgs[outRedInd + 1], O_WRONLY | O_TRUNC | O_CREAT, S_IRUSR | S_IRGRP | S_IWGRP | S_IWUSR);
+
+		printf("outfile: %d - %s\n", outFile, cmdArgs[outRedInd + 1]);
+		if(outFile == -1){
+			printf("ERROR: could not access output file. You have been terminated.\n");
+			exit(1);
+		}
+	}
+
+
+	if(numIns == 1){
+		//setup input redirect and infile name
+		inFile = open(cmdArgs[inRedInd + 1], O_RDONLY);
+		printf("infile: %d - %s\n", inFile, cmdArgs[inRedInd + 1]);
+		if(inFile == -1){
+			printf("ERROR: could not access input file. You have been terminated.\n");
+			exit(1);
+		}
+	}
+
+	
 
 	return 0;
 }
