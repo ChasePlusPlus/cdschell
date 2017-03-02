@@ -1,8 +1,8 @@
-CC=gcc
-CFLAGS=-lreadline -I.
+CC = gcc
+CFLAGS = -lreadline -std=c11 -I.
 
-cdshell: cdshell.c
-	$(CC) -o cdshell cdshell.o -I.
+cdshell: cdshell.o
+	$(CC) -lreadline -o cdshell cdshell.o -I.
 
 clean:
 	/bin/rm -f *.o *~
