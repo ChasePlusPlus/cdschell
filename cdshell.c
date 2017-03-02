@@ -122,12 +122,15 @@ int executeRedirect(char **cmdArgs, int numOfCmds, char **reParams){
 	int outRedInd;
 	int numIns;
 	int numOuts;
+	int numPrms;
 	char tempArg[64];
+	pid_t pid;
 
 	printf("executing redirect\n");	
 	printf("numOfCmds: %d\n", numOfCmds);
 	numIns = 0;
 	numOuts = 0;
+	numPrms = 0;
 	for(int k = 0; k < numOfCmds; k++){
 		if(strcmp(cmdArgs[k], "<") == 0){
 			inRedInd = k;
@@ -144,7 +147,9 @@ int executeRedirect(char **cmdArgs, int numOfCmds, char **reParams){
 			reParams[k] = malloc(strlen(cmdArgs[k]+1));
 			strcpy(reParams[k], cmdArgs[k]);
 			printf("readied param: %s\n", reParams[k]);
+			numPrms++;
 		}
+	reParams[numPrms] = '\0'; //null terminate for later execution ease.
 		
 		
 		
@@ -174,6 +179,46 @@ int executeRedirect(char **cmdArgs, int numOfCmds, char **reParams){
 		}
 	}
 
+	for(int j = 0; j < numPrms; j++)
+		printf("readiedParam[%d]: %s ", j, reParams[j]);
+	printf("\n");
+	
+	
+	
+	//fork process
+	pid = fork();
+	
+	//printf("pid: %d", pid);	
+	if(pid < 0){
+		fprintf(stderr, "ERROR: fork failed\n");
+		exit(1);
+	}
+	else if(pid == 0) {
+		//printf("hello from child!");
+		if(numIns > 0){
+			dup2(inFile, 0);
+			close(inFile);
+		}
+		if(numOuts > 0){
+			dup2(outFile, 1);
+			close(outFile);
+		}
+		//printf("executing readied parameters!\n");
+		execvp(reParams[0], reParams);
+		perror("ERROR: failure to execute command\n");
+		return 0;
+	}
+	else{
+		if(numOuts > 0){
+			close(outFile);
+		}
+		if(numIns > 0){
+			close(inFile);
+		}
+		wait(NULL);
+		printf("Child has executed process!\n");
+		return 0;
+	}
 	
 
 	return 0;
